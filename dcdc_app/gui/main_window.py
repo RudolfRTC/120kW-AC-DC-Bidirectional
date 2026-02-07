@@ -587,6 +587,39 @@ class MainWindow(QMainWindow):
 
     # ── Tab: Setpoints ───────────────────────────────────────────────────
 
+    # Mode groups: group name -> list of WorkingMode members
+    _MODE_GROUPS: Dict[str, List[WorkingMode]] = {
+        "DC Constant": [
+            WorkingMode.DC_CONSTANT_VOLTAGE,
+            WorkingMode.DC_CONSTANT_VOLTAGE_CURRENT_LIMITING,
+            WorkingMode.DC_CONSTANT_CURRENT,
+            WorkingMode.DC_CONSTANT_POWER,
+            WorkingMode.DC_CONSTANT_RESISTANCE,
+            WorkingMode.DC_CONSTANT_MAGNIFICATION,
+            WorkingMode.DC_CC_CV,
+        ],
+        "DC Ramp": [
+            WorkingMode.DC_RAMP_VOLTAGE,
+            WorkingMode.DC_RAMP_CURRENT,
+            WorkingMode.DC_RAMP_POWER,
+        ],
+        "DC Pulse": [
+            WorkingMode.DC_PULSE_VOLTAGE,
+            WorkingMode.DC_PULSE_CURRENT,
+            WorkingMode.DC_PULSE_POWER,
+            WorkingMode.DC_PULSE_RESISTANCE,
+        ],
+        "AC": [
+            WorkingMode.AC_CONSTANT_POWER,
+            WorkingMode.INDEPENDENT_INVERTER,
+        ],
+        "System": [
+            WorkingMode.IDLE,
+            WorkingMode.STANDBY,
+            WorkingMode.DC_INTERNAL_RESISTANCE_TEST,
+        ],
+    }
+
     def _build_setpoints_tab(self) -> QWidget:
         widget = QWidget()
         outer = QHBoxLayout(widget)
@@ -594,6 +627,7 @@ class MainWindow(QMainWindow):
 
         # Left column: form
         form_container = QWidget()
+        form_container.setMaximumWidth(420)
         form_layout = QVBoxLayout(form_container)
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(8)
@@ -604,12 +638,19 @@ class MainWindow(QMainWindow):
         sp_form.setSpacing(6)
         sp_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
+        # Group combo
+        self._cmb_group = QComboBox()
+        for group_name in self._MODE_GROUPS:
+            self._cmb_group.addItem(group_name)
+        self._cmb_group.currentTextChanged.connect(self._on_group_changed)
+        sp_form.addRow("Group", self._cmb_group)
+
+        # Mode combo (filtered by group)
         self._cmb_mode = QComboBox()
-        for m in WorkingMode:
-            self._cmb_mode.addItem(m.name, m.value)
         self._cmb_mode.currentIndexChanged.connect(self._on_mode_changed)
         sp_form.addRow("Mode", self._cmb_mode)
 
+        # Parameter spinboxes
         self._spn_param1 = QDoubleSpinBox()
         self._spn_param1.setRange(-999999, 999999)
         self._spn_param1.setDecimals(3)
@@ -642,14 +683,37 @@ class MainWindow(QMainWindow):
         self._btn_apply.clicked.connect(self._on_apply_setpoints)
         form_layout.addWidget(self._btn_apply)
 
-        self._on_mode_changed()  # Initialize param labels
-
         form_layout.addStretch()
 
         outer.addWidget(form_container)
-        outer.addStretch()
+
+        # Right column: mode description
+        self._lbl_mode_desc = QLabel()
+        self._lbl_mode_desc.setWordWrap(True)
+        self._lbl_mode_desc.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._lbl_mode_desc.setStyleSheet(
+            f"color: {TEXT_DIM}; font-family: {FONT_MONO}; font-size: 12px; "
+            f"padding: 8px; background: {BG_CARD}; border: 1px solid {BORDER_SUBTLE}; "
+            f"border-radius: 6px;"
+        )
+        outer.addWidget(self._lbl_mode_desc, 1)
+
+        # Populate initial group
+        self._on_group_changed(self._cmb_group.currentText())
 
         return widget
+
+    def _on_group_changed(self, group_name: str) -> None:
+        """Repopulate the mode combo when group changes."""
+        modes = self._MODE_GROUPS.get(group_name, [])
+        self._cmb_mode.blockSignals(True)
+        self._cmb_mode.clear()
+        for m in modes:
+            self._cmb_mode.addItem(m.name, m.value)
+        self._cmb_mode.blockSignals(False)
+        if modes:
+            self._cmb_mode.setCurrentIndex(0)
+        self._on_mode_changed()
 
     # ── Tab: Raw CAN ─────────────────────────────────────────────────────
 
@@ -1103,6 +1167,23 @@ class MainWindow(QMainWindow):
             else:
                 spinners[i].setVisible(False)
                 labels[i].setVisible(False)
+
+        # Update mode description panel
+        if mode_val is not None:
+            try:
+                mode = WorkingMode(mode_val)
+                desc_lines = [f"Mode:  {mode.name}  (0x{mode_val:02X})"]
+                if params_def:
+                    desc_lines.append(f"Parameters:  {len(params_def)}")
+                    for j, (name, unit, res) in enumerate(params_def, 1):
+                        desc_lines.append(f"  P{j}: {name}  [{unit}]  step={res}")
+                else:
+                    desc_lines.append("No parameters")
+                self._lbl_mode_desc.setText("\n".join(desc_lines))
+            except (ValueError, TypeError):
+                self._lbl_mode_desc.setText("")
+        else:
+            self._lbl_mode_desc.setText("Select a mode")
 
     # =====================================================================
     #  Event handlers – Logging / Errors

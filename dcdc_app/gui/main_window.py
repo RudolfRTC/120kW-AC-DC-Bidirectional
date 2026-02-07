@@ -1,10 +1,10 @@
 """Main application window – DC/DC Mission Console.
 
 Implements the full GUI with:
-- Left sidebar: connection, controls, setpoints (fixed width)
-- Centre: live telemetry dashboard (compact cards)
-- Right: faults, events, heartbeat (fixed width)
-- Bottom tabs: Trends | DC Side | AC Grid | Power & Energy | Thermal | Raw CAN
+- Left sidebar: connection + power control (compact, no scroll)
+- Centre: fixed telemetry dashboard + bottom tabs
+- Right: faults, events, heartbeat
+- Bottom tabs: Trends | DC Side | AC Grid | Power & Energy | Thermal | Setpoints | Raw CAN
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSizePolicy,
     QSplitter,
     QStatusBar,
@@ -219,19 +218,12 @@ class MainWindow(QMainWindow):
 
         return header
 
-    # ── Left Sidebar ─────────────────────────────────────────────────────
+    # ── Left Sidebar (Connection + Power Control only) ─────────────────
 
     def _build_sidebar(self) -> QWidget:
         w = QWidget()
         w.setObjectName("sidebarPanel")
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-
-        container = QWidget()
-        layout = QVBoxLayout(container)
+        layout = QVBoxLayout(w)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(4)
 
@@ -297,87 +289,28 @@ class MainWindow(QMainWindow):
         self._btn_estop.clicked.connect(self._on_emergency_stop)
         layout.addWidget(self._btn_estop)
 
-        # ── Setpoints ────────────────────────────────────────────────────
-        layout.addSpacing(4)
-        layout.addWidget(SectionLabel("SETPOINTS"))
-
-        sp_form = QFormLayout()
-        sp_form.setSpacing(4)
-        sp_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-
-        self._cmb_mode = QComboBox()
-        for m in WorkingMode:
-            self._cmb_mode.addItem(m.name, m.value)
-        self._cmb_mode.currentIndexChanged.connect(self._on_mode_changed)
-        sp_form.addRow("Mode", self._cmb_mode)
-
-        self._spn_param1 = QDoubleSpinBox()
-        self._spn_param1.setRange(-999999, 999999)
-        self._spn_param1.setDecimals(3)
-        self._lbl_param1 = QLabel("Param 1")
-        sp_form.addRow(self._lbl_param1, self._spn_param1)
-
-        self._spn_param2 = QDoubleSpinBox()
-        self._spn_param2.setRange(-999999, 999999)
-        self._spn_param2.setDecimals(3)
-        self._lbl_param2 = QLabel("Param 2")
-        sp_form.addRow(self._lbl_param2, self._spn_param2)
-
-        self._spn_param3 = QDoubleSpinBox()
-        self._spn_param3.setRange(-999999, 999999)
-        self._spn_param3.setDecimals(3)
-        self._lbl_param3 = QLabel("Param 3")
-        sp_form.addRow(self._lbl_param3, self._spn_param3)
-
-        self._spn_param4 = QDoubleSpinBox()
-        self._spn_param4.setRange(-999999, 999999)
-        self._spn_param4.setDecimals(3)
-        self._lbl_param4 = QLabel("Param 4")
-        sp_form.addRow(self._lbl_param4, self._spn_param4)
-
-        layout.addLayout(sp_form)
-
-        self._btn_apply = QPushButton("Apply Setpoints")
-        self._btn_apply.setEnabled(False)
-        self._btn_apply.clicked.connect(self._on_apply_setpoints)
-        layout.addWidget(self._btn_apply)
-
-        self._on_mode_changed()  # Initialize param labels
-
         layout.addStretch()
-
-        scroll.setWidget(container)
-
-        outer = QVBoxLayout(w)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(scroll)
         return w
 
-    # ── Centre: Telemetry + Bottom Tabs ──────────────────────────────────
+    # ── Centre: Telemetry (fixed) + Bottom Tabs ────────────────────────
 
     def _build_centre(self) -> QWidget:
         centre = QWidget()
         layout = QVBoxLayout(centre)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(2)
 
-        # Telemetry cards in a scroll area so they never push tabs off
-        telem_scroll = QScrollArea()
-        telem_scroll.setWidgetResizable(True)
-        telem_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        telem_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        telem_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        telem_scroll.setMaximumHeight(260)
-        telem_scroll.setWidget(self._build_telemetry_grid())
-        layout.addWidget(telem_scroll)
+        # Telemetry cards – fixed at top, no scroll
+        layout.addWidget(self._build_telemetry_grid(), 0)
 
-        # Bottom tabs: Trends | DC Side | AC Grid | Power & Energy | Thermal | Raw CAN
+        # Bottom tabs
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_trends_tab(), "Trends")
         self._tabs.addTab(self._build_dc_side_tab(), "DC Side")
         self._tabs.addTab(self._build_ac_grid_tab(), "AC Grid")
         self._tabs.addTab(self._build_power_tab(), "Power & Energy")
         self._tabs.addTab(self._build_thermal_tab(), "Thermal")
+        self._tabs.addTab(self._build_setpoints_tab(), "Setpoints")
         self._tabs.addTab(self._build_raw_can_tab(), "Raw CAN")
         layout.addWidget(self._tabs, 1)
 
@@ -649,6 +582,72 @@ class MainWindow(QMainWindow):
         # Add warning threshold lines
         p.addLine(y=60, pen=pg.mkPen(ACCENT_YELLOW, width=1, style=Qt.PenStyle.DashLine))
         p.addLine(y=80, pen=pg.mkPen(ACCENT_RED, width=1, style=Qt.PenStyle.DashLine))
+
+        return widget
+
+    # ── Tab: Setpoints ───────────────────────────────────────────────────
+
+    def _build_setpoints_tab(self) -> QWidget:
+        widget = QWidget()
+        outer = QHBoxLayout(widget)
+        outer.setContentsMargins(12, 12, 12, 12)
+
+        # Left column: form
+        form_container = QWidget()
+        form_layout = QVBoxLayout(form_container)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setSpacing(8)
+
+        form_layout.addWidget(SectionLabel("WORKING MODE & PARAMETERS"))
+
+        sp_form = QFormLayout()
+        sp_form.setSpacing(6)
+        sp_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        self._cmb_mode = QComboBox()
+        for m in WorkingMode:
+            self._cmb_mode.addItem(m.name, m.value)
+        self._cmb_mode.currentIndexChanged.connect(self._on_mode_changed)
+        sp_form.addRow("Mode", self._cmb_mode)
+
+        self._spn_param1 = QDoubleSpinBox()
+        self._spn_param1.setRange(-999999, 999999)
+        self._spn_param1.setDecimals(3)
+        self._lbl_param1 = QLabel("Param 1")
+        sp_form.addRow(self._lbl_param1, self._spn_param1)
+
+        self._spn_param2 = QDoubleSpinBox()
+        self._spn_param2.setRange(-999999, 999999)
+        self._spn_param2.setDecimals(3)
+        self._lbl_param2 = QLabel("Param 2")
+        sp_form.addRow(self._lbl_param2, self._spn_param2)
+
+        self._spn_param3 = QDoubleSpinBox()
+        self._spn_param3.setRange(-999999, 999999)
+        self._spn_param3.setDecimals(3)
+        self._lbl_param3 = QLabel("Param 3")
+        sp_form.addRow(self._lbl_param3, self._spn_param3)
+
+        self._spn_param4 = QDoubleSpinBox()
+        self._spn_param4.setRange(-999999, 999999)
+        self._spn_param4.setDecimals(3)
+        self._lbl_param4 = QLabel("Param 4")
+        sp_form.addRow(self._lbl_param4, self._spn_param4)
+
+        form_layout.addLayout(sp_form)
+
+        self._btn_apply = QPushButton("Apply Setpoints")
+        self._btn_apply.setObjectName("btnConnect")
+        self._btn_apply.setEnabled(False)
+        self._btn_apply.clicked.connect(self._on_apply_setpoints)
+        form_layout.addWidget(self._btn_apply)
+
+        self._on_mode_changed()  # Initialize param labels
+
+        form_layout.addStretch()
+
+        outer.addWidget(form_container)
+        outer.addStretch()
 
         return widget
 

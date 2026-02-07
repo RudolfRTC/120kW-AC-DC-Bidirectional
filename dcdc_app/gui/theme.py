@@ -48,8 +48,9 @@ QMainWindow {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 {BG_PANEL}, stop:0.5 #0d1a2e, stop:1 {BG_PANEL});
     border-bottom: 1px solid {BORDER_GLOW};
-    min-height: 48px;
-    padding: 0 16px;
+    min-height: 32px;
+    max-height: 38px;
+    padding: 0 12px;
 }}
 
 #headerTitle {{
@@ -71,23 +72,23 @@ QMainWindow {{
 #sidebarPanel {{
     background-color: {BG_PANEL};
     border-right: 1px solid {BORDER_SUBTLE};
-    min-width: 240px;
-    max-width: 280px;
+    min-width: 210px;
+    max-width: 230px;
 }}
 
 #faultsPanel {{
     background-color: {BG_PANEL};
     border-left: 1px solid {BORDER_SUBTLE};
-    min-width: 260px;
-    max-width: 320px;
+    min-width: 200px;
+    max-width: 240px;
 }}
 
 /* ─── Telemetry Cards ────────────────────────────────────────────────────── */
 .TelemetryCard {{
     background-color: {BG_CARD};
     border: 1px solid {BORDER_SUBTLE};
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 6px;
+    padding: 6px;
 }}
 
 .TelemetryCard:hover {{
@@ -96,7 +97,7 @@ QMainWindow {{
 
 .CardLabel {{
     color: {TEXT_SECONDARY};
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -105,20 +106,20 @@ QMainWindow {{
 .CardValue {{
     color: {TEXT_PRIMARY};
     font-family: {FONT_MONO};
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 700;
 }}
 
 .CardUnit {{
     color: {TEXT_DIM};
     font-family: {FONT_MONO};
-    font-size: 14px;
+    font-size: 11px;
 }}
 
 .CardValueSmall {{
     color: {TEXT_PRIMARY};
     font-family: {FONT_MONO};
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
 }}
 
@@ -172,8 +173,8 @@ QPushButton#btnEnable {{
     background-color: #0d3b2e;
     border-color: {ACCENT_GREEN};
     color: {ACCENT_GREEN};
-    font-size: 14px;
-    padding: 10px 20px;
+    font-size: 13px;
+    padding: 6px 12px;
 }}
 
 QPushButton#btnEnable:hover {{
@@ -184,8 +185,8 @@ QPushButton#btnDisable {{
     background-color: #3b2900;
     border-color: {ACCENT_ORANGE};
     color: {ACCENT_ORANGE};
-    font-size: 14px;
-    padding: 10px 20px;
+    font-size: 13px;
+    padding: 6px 12px;
 }}
 
 QPushButton#btnDisable:hover {{
@@ -196,10 +197,10 @@ QPushButton#btnEmergencyStop {{
     background-color: #5c0a0a;
     border: 2px solid {ACCENT_RED};
     color: {ACCENT_RED};
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 800;
-    padding: 12px 24px;
-    border-radius: 8px;
+    padding: 6px 12px;
+    border-radius: 6px;
 }}
 
 QPushButton#btnEmergencyStop:hover {{
@@ -451,5 +452,6 @@ def pyqtgraph_theme() -> dict:
     return {
         "background": BG_PANEL,
         "foreground": TEXT_SECONDARY,
-        "accent_colors": [ACCENT_CYAN, ACCENT_GREEN, ACCENT_YELLOW, ACCENT_PURPLE],
+        "accent_colors": [ACCENT_CYAN, ACCENT_GREEN, ACCENT_YELLOW, ACCENT_PURPLE,
+                          ACCENT_ORANGE, ACCENT_RED, ACCENT_BLUE, "#ff80ab"],
     }

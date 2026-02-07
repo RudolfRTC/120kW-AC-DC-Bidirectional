@@ -72,15 +72,11 @@ QMainWindow {{
 #sidebarPanel {{
     background-color: {BG_PANEL};
     border-right: 1px solid {BORDER_SUBTLE};
-    min-width: 210px;
-    max-width: 230px;
 }}
 
 #faultsPanel {{
     background-color: {BG_PANEL};
     border-left: 1px solid {BORDER_SUBTLE};
-    min-width: 200px;
-    max-width: 240px;
 }}
 
 /* ─── Telemetry Cards ────────────────────────────────────────────────────── */

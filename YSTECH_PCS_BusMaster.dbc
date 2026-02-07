@@ -1,0 +1,293 @@
+VERSION ""
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_: Controller PCS
+
+BA_DEF_ BO_ "VFrameFormat" ENUM "Standard","Extended","FD","J1939PG";
+BA_DEF_DEF_ "VFrameFormat" "Extended";
+
+CM_ "YSTECH PCS (30-120kW) CAN protocol v1.11. Default PCS addr=0xFA, controller addr=0xB4. IDs are 29-bit extended. Change PS/SA bytes for other addresses.";
+
+
+BO_ 403045044 SetProtectionParams1_0x1805FAB4: 8 Controller
+ SG_ MaxOutputVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ MinOutputVoltage : 23|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ MaxChargeCurrent : 39|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ MaxDischargeCurrent : 55|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+
+BO_ 403110580 SetProtectionParams2_0x1806FAB4: 8 Controller
+ SG_ MaxChargePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ MaxDischargePower : 23|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ ACVoltageUpper : 39|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ ACVoltageLower : 55|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+
+BO_ 403176116 SetProtectionParams3_0x1807FAB4: 8 Controller
+ SG_ DischargeFreqUpper : 7|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ ChargeFreqLower : 23|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ ACFreqUpper : 39|8@1+ (1,0) [0|255] "Hz" Vector__XXX
+ SG_ ACFreqLower : 47|8@1+ (1,0) [0|255] "Hz" Vector__XXX
+
+BO_ 403307188 SetTime_0x1809FAB4: 8 Controller
+ SG_ Year : 7|16@1+ (1,0) [2000|2099] "year" Vector__XXX
+ SG_ Month : 23|8@1+ (1,0) [1|12] "month" Vector__XXX
+ SG_ Day : 31|8@1+ (1,0) [1|31] "day" Vector__XXX
+ SG_ Hour : 39|8@1+ (1,0) [0|23] "hour" Vector__XXX
+ SG_ Minute : 47|8@1+ (1,0) [0|59] "min" Vector__XXX
+ SG_ Second : 55|8@1+ (1,0) [0|59] "sec" Vector__XXX
+
+BO_ 403438260 SetWorkingMode_0x180BFAB4: 8 Controller
+ SG_ WorkingMode : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 403503796 SetModeParams12_0x180CFAB4: 8 Controller
+ SG_ Param1 : 7|32@1- (0.001,0) [-2147483.648|2147483.647] "" Vector__XXX
+ SG_ Param2 : 39|32@1- (0.001,0) [-2147483.648|2147483.647] "" Vector__XXX
+
+BO_ 403569332 SetModeParams34_0x180DFAB4: 8 Controller
+ SG_ Param3 : 7|32@1- (0.001,0) [-2147483.648|2147483.647] "" Vector__XXX
+ SG_ Param4 : 39|32@1- (0.001,0) [-2147483.648|2147483.647] "" Vector__XXX
+
+BO_ 403700404 StartStop_0x180FFAB4: 8 Controller
+ SG_ Start : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ClearFault : 15|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AutoStart : 23|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 404421300 Heartbeat_0x181AFAB4: 8 Controller
+ SG_ DcVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ DcCurrent : 23|16@1+ (0.1,-1000) [-1000|5553.5] "A" Vector__XXX
+ SG_ RunningState : 39|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 404486836 SetBusVoltageReactive_0x181BFAB4: 8 Controller
+ SG_ BusVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ ReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+
+BO_ 404748980 SetIOBUS_0x181FFAB4: 8 Controller
+ SG_ IO1 : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO2 : 15|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO3 : 23|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO4 : 31|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 404880052 SetPhaseActivePower_0x1821FAB4: 8 Controller
+ SG_ PhaseAActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ PhaseBActivePower : 23|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ PhaseCActivePower : 39|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+
+BO_ 405207732 SetSplitPhaseEnable_0x1826FAB4: 8 Controller
+ SG_ SplitPhaseEnable : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 405338804 SetInverterPhase_0x1828FAB4: 8 Controller
+ SG_ InverterPhase : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 405469876 SetReactiveControl_0x182AFAB4: 8 Controller
+ SG_ ReactiveControlMode : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PowerFactor : 15|16@1- (0.001,0) [-1|1] "" Vector__XXX
+
+BO_ 405600948 SetGridMode_0x182CFAB4: 8 Controller
+ SG_ GridMode : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 405732020 SetModuleParallel_0x182EFAB4: 8 Controller
+ SG_ ParallelMode : 7|8@1+ (1,0) [0|2] "" Vector__XXX
+ SG_ ModuleCount : 15|8@1+ (1,0) [1|10] "" Vector__XXX
+ SG_ HallRatio : 23|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 402782900 ReadProtectionParams_0x1801FAB4: 8 Controller
+ SG_ ParamType : 7|8@1+ (1,0) [1|3] "" Vector__XXX
+
+BO_ 404617908 ReadSpecialData_0x181DFAB4: 8 Controller
+ SG_ DataType : 7|8@1+ (1,0) [1|11] "" Vector__XXX
+
+
+BO_ 402830586 ProtectionParams1Reply_0x1802B4FA: 8 PCS
+ SG_ MaxOutputVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ MinOutputVoltage : 23|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ MaxChargeCurrent : 39|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ MaxDischargeCurrent : 55|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+
+BO_ 402896122 ProtectionParams2Reply_0x1803B4FA: 8 PCS
+ SG_ MaxChargePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ MaxDischargePower : 23|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ ACVoltageUpper : 39|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ ACVoltageLower : 55|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+
+BO_ 402961658 ProtectionParams3Reply_0x1804B4FA: 8 PCS
+ SG_ DischargeFreqUpper : 7|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ ChargeFreqLower : 23|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ ACFreqUpper : 39|8@1+ (1,0) [0|255] "Hz" Vector__XXX
+ SG_ ACFreqLower : 47|8@1+ (1,0) [0|255] "Hz" Vector__XXX
+
+BO_ 403223802 SetProtectionReply_0x1808B4FA: 8 PCS
+ SG_ ParamType : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ Result : 15|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 403354874 SetTimeReply_0x180AB4FA: 8 PCS
+ SG_ Result : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 403617018 SetModeReply_0x180EB4FA: 8 PCS
+ SG_ Result : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 403748090 StartStopReply_0x1810B4FA: 8 PCS
+ SG_ Result : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 403813626 DCData_0x1811B4FA: 8 PCS
+ SG_ DcVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ DcCurrent : 23|16@1+ (0.1,-1000) [-1000|5553.5] "A" Vector__XXX
+ SG_ DcPower : 39|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ InletTemperature : 55|16@1+ (0.1,-50) [-50|6053.5] "C" Vector__XXX
+
+BO_ 403879162 CapacityEnergy_0x1812B4FA: 8 PCS
+ SG_ Capacity : 7|16@1+ (0.1,0) [0|6553.5] "Ah" Vector__XXX
+ SG_ Energy : 23|32@1+ (0.1,0) [0|429496729.5] "Wh" Vector__XXX
+ SG_ OutletTemperature : 55|16@1+ (0.1,-50) [-50|6053.5] "C" Vector__XXX
+
+BO_ 403944698 Status_0x1813B4FA: 8 PCS
+ SG_ RunningState : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ FaultCode : 23|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 404010234 GridVoltage_0x1814B4FA: 8 PCS
+ SG_ GridUVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ GridVVoltage : 23|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ GridWVoltage : 39|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+
+BO_ 404075770 GridCurrent_0x1815B4FA: 8 PCS
+ SG_ GridUCurrent : 7|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ GridVCurrent : 23|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ GridWCurrent : 39|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ PowerFactor : 55|16@1- (0.1,0) [-3276.8|3276.7] "" Vector__XXX
+
+BO_ 404141306 SystemPower_0x1816B4FA: 8 PCS
+ SG_ ActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ ReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+ SG_ ApparentPower : 39|16@1+ (0.1,0) [0|6553.5] "kVA" Vector__XXX
+ SG_ Frequency : 55|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+
+BO_ 404206842 LoadVoltage_0x1817B4FA: 8 PCS
+ SG_ LoadUVoltage : 7|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ LoadVVoltage : 23|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ LoadWVoltage : 39|16@1+ (0.1,0) [0|6553.5] "V" Vector__XXX
+
+BO_ 404272378 LoadCurrent_0x1818B4FA: 8 PCS
+ SG_ LoadUCurrent : 7|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ LoadVCurrent : 23|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ LoadWCurrent : 39|16@1+ (0.1,0) [0|6553.5] "A" Vector__XXX
+
+BO_ 404337914 LoadPower_0x1819B4FA: 8 PCS
+ SG_ LoadActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ LoadReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+ SG_ LoadApparentPower : 39|16@1+ (0.1,0) [0|6553.5] "kVA" Vector__XXX
+
+BO_ 404796666 IOAndAD_0x1820B4FA: 8 PCS
+ SG_ IO1 : 7|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO2 : 15|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO3 : 23|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IO4 : 31|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AD1Voltage : 39|16@1+ (0.001,0) [0|65.535] "V" Vector__XXX
+ SG_ AD2Voltage : 55|16@1+ (0.001,0) [0|65.535] "V" Vector__XXX
+
+BO_ 404993274 PhaseAPower_0x1823B4FA: 8 PCS
+ SG_ PhaseAActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ PhaseAReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+ SG_ PhaseAApparentPower : 39|16@1+ (0.1,0) [0|6553.5] "kVA" Vector__XXX
+
+BO_ 405058810 PhaseBPower_0x1824B4FA: 8 PCS
+ SG_ PhaseBActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ PhaseBReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+ SG_ PhaseBApparentPower : 39|16@1+ (0.1,0) [0|6553.5] "kVA" Vector__XXX
+
+BO_ 405124346 PhaseCPower_0x1825B4FA: 8 PCS
+ SG_ PhaseCActivePower : 7|16@1+ (0.1,0) [0|6553.5] "kW" Vector__XXX
+ SG_ PhaseCReactivePower : 23|16@1+ (0.1,0) [0|6553.5] "kVar" Vector__XXX
+ SG_ PhaseCApparentPower : 39|16@1+ (0.1,0) [0|6553.5] "kVA" Vector__XXX
+
+BO_ 406107386 ARMVersion_0x1834B4FA: 8 PCS
+ SG_ HW_Version : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HW_Build : 15|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HW_Date : 23|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Version : 31|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Build : 39|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Date : 47|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 406172922 DSPVersion_0x1835B4FA: 8 PCS
+ SG_ HW_Version : 7|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HW_Build : 15|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HW_Date : 23|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Version : 31|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Build : 39|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ SW_Date : 47|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 406435066 HighResDC_0x1839B4FA: 8 PCS
+ SG_ HighResVoltage : 7|32@1+ (0.001,0) [0|4294967.295] "V" Vector__XXX
+ SG_ HighResCurrent : 39|32@1+ (0.001,-1000) [-1000|4293967.295] "A" Vector__XXX
+
+
+BA_ "VFrameFormat" BO_ 402782900 1;
+BA_ "VFrameFormat" BO_ 402830586 1;
+BA_ "VFrameFormat" BO_ 402896122 1;
+BA_ "VFrameFormat" BO_ 402961658 1;
+BA_ "VFrameFormat" BO_ 403045044 1;
+BA_ "VFrameFormat" BO_ 403110580 1;
+BA_ "VFrameFormat" BO_ 403176116 1;
+BA_ "VFrameFormat" BO_ 403223802 1;
+BA_ "VFrameFormat" BO_ 403307188 1;
+BA_ "VFrameFormat" BO_ 403354874 1;
+BA_ "VFrameFormat" BO_ 403438260 1;
+BA_ "VFrameFormat" BO_ 403503796 1;
+BA_ "VFrameFormat" BO_ 403569332 1;
+BA_ "VFrameFormat" BO_ 403617018 1;
+BA_ "VFrameFormat" BO_ 403700404 1;
+BA_ "VFrameFormat" BO_ 403748090 1;
+BA_ "VFrameFormat" BO_ 403813626 1;
+BA_ "VFrameFormat" BO_ 403879162 1;
+BA_ "VFrameFormat" BO_ 403944698 1;
+BA_ "VFrameFormat" BO_ 404010234 1;
+BA_ "VFrameFormat" BO_ 404075770 1;
+BA_ "VFrameFormat" BO_ 404141306 1;
+BA_ "VFrameFormat" BO_ 404206842 1;
+BA_ "VFrameFormat" BO_ 404272378 1;
+BA_ "VFrameFormat" BO_ 404337914 1;
+BA_ "VFrameFormat" BO_ 404421300 1;
+BA_ "VFrameFormat" BO_ 404486836 1;
+BA_ "VFrameFormat" BO_ 404617908 1;
+BA_ "VFrameFormat" BO_ 404748980 1;
+BA_ "VFrameFormat" BO_ 404796666 1;
+BA_ "VFrameFormat" BO_ 404880052 1;
+BA_ "VFrameFormat" BO_ 404993274 1;
+BA_ "VFrameFormat" BO_ 405058810 1;
+BA_ "VFrameFormat" BO_ 405124346 1;
+BA_ "VFrameFormat" BO_ 405207732 1;
+BA_ "VFrameFormat" BO_ 405338804 1;
+BA_ "VFrameFormat" BO_ 405469876 1;
+BA_ "VFrameFormat" BO_ 405600948 1;
+BA_ "VFrameFormat" BO_ 405732020 1;
+BA_ "VFrameFormat" BO_ 406107386 1;
+BA_ "VFrameFormat" BO_ 406172922 1;
+BA_ "VFrameFormat" BO_ 406435066 1;

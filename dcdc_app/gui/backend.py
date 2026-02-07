@@ -67,6 +67,23 @@ class TelemetrySnapshot:
     active_power: float = 0.0
     reactive_power: float = 0.0
     apparent_power: float = 0.0
+    # Load side
+    load_v_u: float = 0.0
+    load_v_v: float = 0.0
+    load_v_w: float = 0.0
+    load_i_u: float = 0.0
+    load_i_v: float = 0.0
+    load_i_w: float = 0.0
+    load_active_power: float = 0.0
+    load_reactive_power: float = 0.0
+    load_apparent_power: float = 0.0
+    # Per-phase power
+    phase_a_active: float = 0.0
+    phase_a_reactive: float = 0.0
+    phase_b_active: float = 0.0
+    phase_b_reactive: float = 0.0
+    phase_c_active: float = 0.0
+    phase_c_reactive: float = 0.0
     # Timestamps
     seconds_since_rx: float = 999.0
     timestamp: float = 0.0
@@ -229,6 +246,21 @@ class BackendWorker(QObject):
                 active_power=s.system_power.active_power,
                 reactive_power=s.system_power.reactive_power,
                 apparent_power=s.system_power.apparent_power,
+                load_v_u=s.load_voltage.u_voltage,
+                load_v_v=s.load_voltage.v_voltage,
+                load_v_w=s.load_voltage.w_voltage,
+                load_i_u=s.load_current.u_current,
+                load_i_v=s.load_current.v_current,
+                load_i_w=s.load_current.w_current,
+                load_active_power=s.load_power.active_power,
+                load_reactive_power=s.load_power.reactive_power,
+                load_apparent_power=s.load_power.apparent_power,
+                phase_a_active=s.phase_a_power.active_power,
+                phase_a_reactive=s.phase_a_power.reactive_power,
+                phase_b_active=s.phase_b_power.active_power,
+                phase_b_reactive=s.phase_b_power.reactive_power,
+                phase_c_active=s.phase_c_power.active_power,
+                phase_c_reactive=s.phase_c_power.reactive_power,
                 seconds_since_rx=ctrl.seconds_since_last_rx,
                 timestamp=time.time(),
                 tx_count=ctrl.can.stats["tx_count"] if ctrl.can else 0,

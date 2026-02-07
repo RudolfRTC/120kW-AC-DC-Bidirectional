@@ -47,8 +47,8 @@ class TelemetryCard(QFrame):
         self._value = 0.0
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(2)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(1)
 
         # Label
         self._label = QLabel(label.upper())
@@ -58,7 +58,7 @@ class TelemetryCard(QFrame):
 
         # Value + Unit row
         val_row = QHBoxLayout()
-        val_row.setSpacing(4)
+        val_row.setSpacing(3)
         val_row.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignLeft)
 
         self._val_label = QLabel("—")
@@ -199,15 +199,15 @@ class ThreePhaseCard(QFrame):
         self._unit = unit
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(2)
 
         header = QLabel(label.upper())
         header.setProperty("class", "CardLabel")
         layout.addWidget(header)
 
         grid = QGridLayout()
-        grid.setSpacing(4)
+        grid.setSpacing(2)
 
         self._labels = {}
         self._values = {}

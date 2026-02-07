@@ -1,10 +1,10 @@
 """Main application window – DC/DC Mission Console.
 
 Implements the full GUI with:
-- Left sidebar: connection, controls, setpoints
-- Centre: live telemetry dashboard
-- Right: faults, events, heartbeat
-- Bottom: trend plots + raw CAN table
+- Left sidebar: connection, controls, setpoints (fixed width)
+- Centre: live telemetry dashboard (compact cards)
+- Right: faults, events, heartbeat (fixed width)
+- Bottom tabs: Trends | DC Side | AC Grid | Power & Energy | Thermal | Raw CAN
 """
 
 from __future__ import annotations
@@ -12,22 +12,19 @@ from __future__ import annotations
 import time
 from collections import deque
 from functools import partial
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 
-from PySide6.QtCore import QMetaObject, QSize, Qt, QTimer, Q_ARG, Slot
-from PySide6.QtGui import QAction, QCloseEvent, QIcon
+from PySide6.QtCore import QSize, Qt, QTimer, Slot
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
-    QDialog,
-    QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
     QFrame,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -75,11 +72,9 @@ from dcdc_app.gui.widgets import (
 )
 from dcdc_app.protocol import (
     CAN_BITRATE,
-    FAULT_CODES,
     MODE_PARAMS,
     PCS_DEFAULT_ADDR,
     WorkingMode,
-    fault_description,
 )
 from dcdc_app.can_iface import PCAN_CHANNELS
 
@@ -101,8 +96,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1280, 800)
         self.resize(1500, 900)
 
-        # Backend worker (lives in main thread for simplicity; CAN I/O is in
-        # controller's own threads – the worker just wraps calls).
+        # Backend worker
         self._backend = BackendWorker()
         self._backend.telemetry_updated.connect(self._on_telemetry)
         self._backend.connection_state.connect(self._on_connection_state)
@@ -110,13 +104,48 @@ class MainWindow(QMainWindow):
         self._backend.command_result.connect(self._on_command_result)
         self._backend.error_occurred.connect(self._on_error)
 
-        # Trend data buffers
+        # ── All trend data buffers ──
         self._trend_time: deque = deque(maxlen=_PLOT_POINTS)
-        self._trend_voltage: deque = deque(maxlen=_PLOT_POINTS)
-        self._trend_current: deque = deque(maxlen=_PLOT_POINTS)
-        self._trend_power: deque = deque(maxlen=_PLOT_POINTS)
-        self._trend_temp: deque = deque(maxlen=_PLOT_POINTS)
         self._trend_start_time: float = time.time()
+
+        # Trends (overview)
+        self._buf_dc_voltage: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_dc_current: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_dc_power: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_inlet_temp: deque = deque(maxlen=_PLOT_POINTS)
+
+        # DC Side
+        self._buf_dc_voltage_hr: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_dc_current_hr: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_capacity: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_energy: deque = deque(maxlen=_PLOT_POINTS)
+
+        # AC Grid
+        self._buf_grid_v_u: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_grid_v_v: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_grid_v_w: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_grid_i_u: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_grid_i_v: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_grid_i_w: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_frequency: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_power_factor: deque = deque(maxlen=_PLOT_POINTS)
+
+        # Power & Energy
+        self._buf_active_power: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_reactive_power: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_apparent_power: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_load_active: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_load_reactive: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_load_apparent: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_a: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_b: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_c: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_a_q: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_b_q: deque = deque(maxlen=_PLOT_POINTS)
+        self._buf_phase_c_q: deque = deque(maxlen=_PLOT_POINTS)
+
+        # Thermal
+        self._buf_outlet_temp: deque = deque(maxlen=_PLOT_POINTS)
 
         # Raw CAN frame buffer
         self._raw_frames: deque = deque(maxlen=_RAW_CAN_MAX)
@@ -132,7 +161,6 @@ class MainWindow(QMainWindow):
     # =====================================================================
 
     def _build_ui(self) -> None:
-        # ── Central widget ───────────────────────────────────────────────
         central = QWidget()
         self.setCentralWidget(central)
         root_layout = QVBoxLayout(central)
@@ -142,19 +170,22 @@ class MainWindow(QMainWindow):
         # Header bar
         root_layout.addWidget(self._build_header())
 
-        # Main body: sidebar | centre | faults
-        body_splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Main body: sidebar | centre | faults  (fixed widths for sides)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
 
-        body_splitter.addWidget(self._build_sidebar())
-        body_splitter.addWidget(self._build_centre())
-        body_splitter.addWidget(self._build_faults_panel())
+        sidebar = self._build_sidebar()
+        sidebar.setFixedWidth(230)
+        body.addWidget(sidebar)
 
-        body_splitter.setStretchFactor(0, 0)  # sidebar fixed
-        body_splitter.setStretchFactor(1, 1)  # centre stretches
-        body_splitter.setStretchFactor(2, 0)  # faults fixed
-        body_splitter.setSizes([260, 800, 290])
+        body.addWidget(self._build_centre(), 1)  # stretches
 
-        root_layout.addWidget(body_splitter, 1)
+        faults = self._build_faults_panel()
+        faults.setFixedWidth(220)
+        body.addWidget(faults)
+
+        root_layout.addLayout(body, 1)
 
         # Status bar
         self._status_bar = QStatusBar()
@@ -167,7 +198,7 @@ class MainWindow(QMainWindow):
         header = QFrame()
         header.setObjectName("headerBar")
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(16, 8, 16, 8)
+        layout.setContentsMargins(12, 4, 12, 4)
 
         title = QLabel("DC/DC  MISSION  CONSOLE")
         title.setObjectName("headerTitle")
@@ -183,8 +214,8 @@ class MainWindow(QMainWindow):
     # ── Left Sidebar ─────────────────────────────────────────────────────
 
     def _build_sidebar(self) -> QWidget:
-        sidebar = QFrame()
-        sidebar.setObjectName("sidebarPanel")
+        w = QWidget()
+        w.setObjectName("sidebarPanel")
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -193,14 +224,14 @@ class MainWindow(QMainWindow):
 
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
 
         # ── Connection section ───────────────────────────────────────────
         layout.addWidget(SectionLabel("CONNECTION"))
 
         form = QFormLayout()
-        form.setSpacing(6)
+        form.setSpacing(4)
 
         self._cmb_interface = QComboBox()
         self._cmb_interface.addItems(["simulator", "pcan", "socketcan"])
@@ -213,16 +244,15 @@ class MainWindow(QMainWindow):
         form.addRow("Channel", self._cmb_channel)
 
         self._edt_bitrate = QLineEdit(str(CAN_BITRATE))
-        self._edt_bitrate.setToolTip("CAN bitrate (bps). Protocol default: 250000")
         form.addRow("Bitrate", self._edt_bitrate)
 
         self._edt_pcs_addr = QLineEdit(f"0x{PCS_DEFAULT_ADDR:02X}")
-        self._edt_pcs_addr.setToolTip("PCS CAN address (hex). Default: 0xFA")
         form.addRow("PCS Addr", self._edt_pcs_addr)
 
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(4)
         self._btn_connect = QPushButton("Connect")
         self._btn_connect.setObjectName("btnConnect")
         self._btn_connect.clicked.connect(self._on_connect)
@@ -237,7 +267,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_row)
 
         # ── Controls section ─────────────────────────────────────────────
-        layout.addSpacing(8)
+        layout.addSpacing(4)
         layout.addWidget(SectionLabel("POWER CONTROL"))
 
         self._btn_enable = QPushButton("▶  ENABLE")
@@ -259,11 +289,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._btn_estop)
 
         # ── Setpoints ────────────────────────────────────────────────────
-        layout.addSpacing(8)
+        layout.addSpacing(4)
         layout.addWidget(SectionLabel("SETPOINTS"))
 
         sp_form = QFormLayout()
-        sp_form.setSpacing(6)
+        sp_form.setSpacing(4)
 
         self._cmb_mode = QComboBox()
         for m in WorkingMode:
@@ -308,12 +338,9 @@ class MainWindow(QMainWindow):
 
         scroll.setWidget(container)
 
-        wrapper = QVBoxLayout()
-        wrapper.setContentsMargins(0, 0, 0, 0)
-        w = QWidget()
-        w.setObjectName("sidebarPanel")
-        w.setLayout(wrapper)
-        wrapper.addWidget(scroll)
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
         return w
 
     # ── Centre: Telemetry + Bottom Tabs ──────────────────────────────────
@@ -321,27 +348,38 @@ class MainWindow(QMainWindow):
     def _build_centre(self) -> QWidget:
         centre = QWidget()
         layout = QVBoxLayout(centre)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
-        # Telemetry cards grid
-        layout.addWidget(self._build_telemetry_grid())
+        # Telemetry cards in a scroll area so they never push tabs off
+        telem_scroll = QScrollArea()
+        telem_scroll.setWidgetResizable(True)
+        telem_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        telem_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        telem_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        telem_scroll.setMaximumHeight(260)
+        telem_scroll.setWidget(self._build_telemetry_grid())
+        layout.addWidget(telem_scroll)
 
-        # Bottom tabs: Trends | Raw CAN
-        tabs = QTabWidget()
-        tabs.addTab(self._build_trends_tab(), "Trends")
-        tabs.addTab(self._build_raw_can_tab(), "Raw CAN")
-        layout.addWidget(tabs, 1)
+        # Bottom tabs: Trends | DC Side | AC Grid | Power & Energy | Thermal | Raw CAN
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._build_trends_tab(), "Trends")
+        self._tabs.addTab(self._build_dc_side_tab(), "DC Side")
+        self._tabs.addTab(self._build_ac_grid_tab(), "AC Grid")
+        self._tabs.addTab(self._build_power_tab(), "Power & Energy")
+        self._tabs.addTab(self._build_thermal_tab(), "Thermal")
+        self._tabs.addTab(self._build_raw_can_tab(), "Raw CAN")
+        layout.addWidget(self._tabs, 1)
 
         return centre
 
     def _build_telemetry_grid(self) -> QWidget:
         container = QWidget()
         grid = QGridLayout(container)
-        grid.setSpacing(8)
+        grid.setSpacing(4)
         grid.setContentsMargins(0, 0, 0, 0)
 
-        # Row 0: Main DC readouts (large)
+        # Row 0: Main DC readouts
         self._card_dc_voltage = TelemetryCard("DC Voltage", "V", ".1f")
         grid.addWidget(self._card_dc_voltage, 0, 0)
 
@@ -354,7 +392,7 @@ class MainWindow(QMainWindow):
         self._card_state = TelemetryCard("State", "", ".0f", large=True)
         grid.addWidget(self._card_state, 0, 3)
 
-        # Row 1: Temperatures, frequency, power factor, energy
+        # Row 1: Temps, freq, PF
         self._card_inlet_temp = TelemetryCard("Inlet Temp", "°C", ".1f", large=False)
         grid.addWidget(self._card_inlet_temp, 1, 0)
 
@@ -367,7 +405,7 @@ class MainWindow(QMainWindow):
         self._card_pf = TelemetryCard("Power Factor", "", ".2f", large=False)
         grid.addWidget(self._card_pf, 1, 3)
 
-        # Row 2: System power + 3-phase
+        # Row 2: Power + 3-phase
         self._card_active_p = TelemetryCard("Active Power", "kW", ".1f", large=False)
         grid.addWidget(self._card_active_p, 2, 0)
 
@@ -395,12 +433,12 @@ class MainWindow(QMainWindow):
 
         return container
 
-    # ── Trends tab ───────────────────────────────────────────────────────
+    # ── Tab: Trends (Overview) ───────────────────────────────────────────
 
     def _build_trends_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setContentsMargins(0, 2, 0, 0)
 
         theme = pyqtgraph_theme()
         pg.setConfigOptions(
@@ -408,45 +446,208 @@ class MainWindow(QMainWindow):
             foreground=theme["foreground"],
             antialias=True,
         )
-
-        self._plot_widget = pg.GraphicsLayoutWidget()
-        layout.addWidget(self._plot_widget)
-
         colors = theme["accent_colors"]
-        pen_width = 2
+        pw = 2  # pen width
 
-        # Voltage plot
-        self._plot_v = self._plot_widget.addPlot(row=0, col=0, title="DC Voltage (V)")
+        self._plot_trends = pg.GraphicsLayoutWidget()
+        layout.addWidget(self._plot_trends)
+
+        self._plot_v = self._plot_trends.addPlot(row=0, col=0, title="DC Voltage (V)")
         self._plot_v.showGrid(x=True, y=True, alpha=0.15)
         self._plot_v.setLabel("bottom", "Time", "s")
-        self._curve_v = self._plot_v.plot(pen=pg.mkPen(colors[0], width=pen_width))
+        self._curve_v = self._plot_v.plot(pen=pg.mkPen(colors[0], width=pw))
 
-        # Current plot
-        self._plot_i = self._plot_widget.addPlot(row=0, col=1, title="DC Current (A)")
+        self._plot_i = self._plot_trends.addPlot(row=0, col=1, title="DC Current (A)")
         self._plot_i.showGrid(x=True, y=True, alpha=0.15)
         self._plot_i.setLabel("bottom", "Time", "s")
-        self._curve_i = self._plot_i.plot(pen=pg.mkPen(colors[1], width=pen_width))
+        self._curve_i = self._plot_i.plot(pen=pg.mkPen(colors[1], width=pw))
 
-        # Power plot
-        self._plot_p = self._plot_widget.addPlot(row=1, col=0, title="DC Power (kW)")
+        self._plot_p = self._plot_trends.addPlot(row=1, col=0, title="DC Power (kW)")
         self._plot_p.showGrid(x=True, y=True, alpha=0.15)
         self._plot_p.setLabel("bottom", "Time", "s")
-        self._curve_p = self._plot_p.plot(pen=pg.mkPen(colors[2], width=pen_width))
+        self._curve_p = self._plot_p.plot(pen=pg.mkPen(colors[2], width=pw))
 
-        # Temperature plot
-        self._plot_t = self._plot_widget.addPlot(row=1, col=1, title="Inlet Temp (°C)")
+        self._plot_t = self._plot_trends.addPlot(row=1, col=1, title="Inlet Temp (°C)")
         self._plot_t.showGrid(x=True, y=True, alpha=0.15)
         self._plot_t.setLabel("bottom", "Time", "s")
-        self._curve_t = self._plot_t.plot(pen=pg.mkPen(colors[3], width=pen_width))
+        self._curve_t = self._plot_t.plot(pen=pg.mkPen(colors[3], width=pw))
 
         return widget
 
-    # ── Raw CAN tab ──────────────────────────────────────────────────────
+    # ── Tab: DC Side ─────────────────────────────────────────────────────
+
+    def _build_dc_side_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 2, 0, 0)
+
+        colors = pyqtgraph_theme()["accent_colors"]
+        pw = 2
+
+        self._plot_dc = pg.GraphicsLayoutWidget()
+        layout.addWidget(self._plot_dc)
+
+        # Row 0: Voltage (standard + hi-res overlaid)
+        p = self._plot_dc.addPlot(row=0, col=0, title="DC Voltage (V)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._dc_curve_v = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Standard")
+        self._dc_curve_v_hr = p.plot(pen=pg.mkPen(colors[4], width=pw, style=Qt.PenStyle.DashLine), name="Hi-Res")
+
+        # Row 0: Current (standard + hi-res overlaid)
+        p = self._plot_dc.addPlot(row=0, col=1, title="DC Current (A)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._dc_curve_i = p.plot(pen=pg.mkPen(colors[1], width=pw), name="Standard")
+        self._dc_curve_i_hr = p.plot(pen=pg.mkPen(colors[4], width=pw, style=Qt.PenStyle.DashLine), name="Hi-Res")
+
+        # Row 1: Power
+        p = self._plot_dc.addPlot(row=1, col=0, title="DC Power (kW)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        self._dc_curve_power = p.plot(pen=pg.mkPen(colors[2], width=pw))
+
+        # Row 1: Capacity & Energy (dual axis)
+        p = self._plot_dc.addPlot(row=1, col=1, title="Capacity (Ah) & Energy (Wh)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._dc_curve_cap = p.plot(pen=pg.mkPen(colors[3], width=pw), name="Capacity Ah")
+        self._dc_curve_energy = p.plot(pen=pg.mkPen(colors[6], width=pw), name="Energy Wh")
+
+        return widget
+
+    # ── Tab: AC Grid ─────────────────────────────────────────────────────
+
+    def _build_ac_grid_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 2, 0, 0)
+
+        colors = pyqtgraph_theme()["accent_colors"]
+        pw = 2
+
+        self._plot_ac = pg.GraphicsLayoutWidget()
+        layout.addWidget(self._plot_ac)
+
+        # Row 0: Grid Voltage U/V/W
+        p = self._plot_ac.addPlot(row=0, col=0, title="Grid Voltage (V)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._ac_curve_vu = p.plot(pen=pg.mkPen(colors[0], width=pw), name="U")
+        self._ac_curve_vv = p.plot(pen=pg.mkPen(colors[1], width=pw), name="V")
+        self._ac_curve_vw = p.plot(pen=pg.mkPen(colors[2], width=pw), name="W")
+
+        # Row 0: Grid Current U/V/W
+        p = self._plot_ac.addPlot(row=0, col=1, title="Grid Current (A)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._ac_curve_iu = p.plot(pen=pg.mkPen(colors[0], width=pw), name="U")
+        self._ac_curve_iv = p.plot(pen=pg.mkPen(colors[1], width=pw), name="V")
+        self._ac_curve_iw = p.plot(pen=pg.mkPen(colors[2], width=pw), name="W")
+
+        # Row 1: Frequency
+        p = self._plot_ac.addPlot(row=1, col=0, title="Frequency (Hz)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        self._ac_curve_freq = p.plot(pen=pg.mkPen(colors[3], width=pw))
+
+        # Row 1: Power Factor
+        p = self._plot_ac.addPlot(row=1, col=1, title="Power Factor")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        self._ac_curve_pf = p.plot(pen=pg.mkPen(colors[6], width=pw))
+
+        return widget
+
+    # ── Tab: Power & Energy ──────────────────────────────────────────────
+
+    def _build_power_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 2, 0, 0)
+
+        colors = pyqtgraph_theme()["accent_colors"]
+        pw = 2
+
+        self._plot_power = pg.GraphicsLayoutWidget()
+        layout.addWidget(self._plot_power)
+
+        # Row 0: System Power (Active/Reactive/Apparent)
+        p = self._plot_power.addPlot(row=0, col=0, title="System Power")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._pwr_curve_active = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Active kW")
+        self._pwr_curve_reactive = p.plot(pen=pg.mkPen(colors[2], width=pw), name="Reactive kVar")
+        self._pwr_curve_apparent = p.plot(pen=pg.mkPen(colors[3], width=pw), name="Apparent kVA")
+
+        # Row 0: Load Power (Active/Reactive/Apparent)
+        p = self._plot_power.addPlot(row=0, col=1, title="Load Power")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._pwr_curve_load_active = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Active kW")
+        self._pwr_curve_load_reactive = p.plot(pen=pg.mkPen(colors[2], width=pw), name="Reactive kVar")
+        self._pwr_curve_load_apparent = p.plot(pen=pg.mkPen(colors[3], width=pw), name="Apparent kVA")
+
+        # Row 1: Per-phase Active Power (A/B/C)
+        p = self._plot_power.addPlot(row=1, col=0, title="Per-Phase Active Power (kW)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._pwr_curve_ph_a = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Phase A")
+        self._pwr_curve_ph_b = p.plot(pen=pg.mkPen(colors[1], width=pw), name="Phase B")
+        self._pwr_curve_ph_c = p.plot(pen=pg.mkPen(colors[2], width=pw), name="Phase C")
+
+        # Row 1: Per-phase Reactive Power (A/B/C)
+        p = self._plot_power.addPlot(row=1, col=1, title="Per-Phase Reactive Power (kVar)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._pwr_curve_ph_a_q = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Phase A")
+        self._pwr_curve_ph_b_q = p.plot(pen=pg.mkPen(colors[1], width=pw), name="Phase B")
+        self._pwr_curve_ph_c_q = p.plot(pen=pg.mkPen(colors[2], width=pw), name="Phase C")
+
+        return widget
+
+    # ── Tab: Thermal ─────────────────────────────────────────────────────
+
+    def _build_thermal_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 2, 0, 0)
+
+        colors = pyqtgraph_theme()["accent_colors"]
+        pw = 2
+
+        self._plot_thermal = pg.GraphicsLayoutWidget()
+        layout.addWidget(self._plot_thermal)
+
+        # Full-width: Inlet + Outlet overlaid
+        p = self._plot_thermal.addPlot(row=0, col=0, title="Temperature (°C)")
+        p.showGrid(x=True, y=True, alpha=0.15)
+        p.setLabel("bottom", "Time", "s")
+        p.addLegend(offset=(60, 10))
+        self._therm_curve_inlet = p.plot(pen=pg.mkPen(colors[0], width=pw), name="Inlet")
+        self._therm_curve_outlet = p.plot(pen=pg.mkPen(colors[5], width=pw), name="Outlet")
+
+        # Add warning threshold lines
+        p.addLine(y=60, pen=pg.mkPen(ACCENT_YELLOW, width=1, style=Qt.PenStyle.DashLine))
+        p.addLine(y=80, pen=pg.mkPen(ACCENT_RED, width=1, style=Qt.PenStyle.DashLine))
+
+        return widget
+
+    # ── Tab: Raw CAN ─────────────────────────────────────────────────────
 
     def _build_raw_can_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setContentsMargins(0, 2, 0, 0)
 
         # Filter row
         filter_row = QHBoxLayout()
@@ -490,8 +691,8 @@ class MainWindow(QMainWindow):
         panel = QFrame()
         panel.setObjectName("faultsPanel")
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
 
         # Heartbeat indicator
         layout.addWidget(SectionLabel("HEARTBEAT"))
@@ -501,17 +702,17 @@ class MainWindow(QMainWindow):
         # CAN stats
         self._lbl_can_stats = QLabel("TX: 0  RX: 0  ERR: 0")
         self._lbl_can_stats.setStyleSheet(
-            f"color: {TEXT_DIM}; font-family: {FONT_MONO}; font-size: 11px;"
+            f"color: {TEXT_DIM}; font-family: {FONT_MONO}; font-size: 10px;"
         )
         layout.addWidget(self._lbl_can_stats)
 
         # Active faults
-        layout.addSpacing(4)
+        layout.addSpacing(2)
         layout.addWidget(SectionLabel("ACTIVE FAULTS"))
 
         self._lbl_fault_code = QLabel("No fault")
         self._lbl_fault_code.setStyleSheet(
-            f"color: {ACCENT_GREEN}; font-family: {FONT_MONO}; font-size: 14px; font-weight: 700;"
+            f"color: {ACCENT_GREEN}; font-family: {FONT_MONO}; font-size: 12px; font-weight: 700;"
         )
         self._lbl_fault_code.setWordWrap(True)
         layout.addWidget(self._lbl_fault_code)
@@ -522,7 +723,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._btn_reset_faults)
 
         # Event log
-        layout.addSpacing(4)
+        layout.addSpacing(2)
         layout.addWidget(SectionLabel("EVENT LOG"))
 
         self._txt_events = QTextBrowser()
@@ -536,13 +737,10 @@ class MainWindow(QMainWindow):
     # =====================================================================
 
     def _setup_timers(self) -> None:
-        # Poll telemetry from backend at ~10 Hz
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(int(1000 / _UI_REFRESH_HZ))
         self._poll_timer.timeout.connect(self._backend.poll_telemetry)
-        # Don't start until connected
 
-        # Trend plot update at 4 Hz (lighter than telemetry)
         self._plot_timer = QTimer(self)
         self._plot_timer.setInterval(250)
         self._plot_timer.timeout.connect(self._update_plots)
@@ -665,22 +863,57 @@ class MainWindow(QMainWindow):
             )
             self._lbl_fault_code.setStyleSheet(
                 f"color: {ACCENT_RED}; font-family: {FONT_MONO}; "
-                f"font-size: 14px; font-weight: 700;"
+                f"font-size: 12px; font-weight: 700;"
             )
         else:
             self._lbl_fault_code.setText("No fault")
             self._lbl_fault_code.setStyleSheet(
                 f"color: {ACCENT_GREEN}; font-family: {FONT_MONO}; "
-                f"font-size: 14px; font-weight: 700;"
+                f"font-size: 12px; font-weight: 700;"
             )
 
-        # Trend buffers
+        # ── Fill ALL trend buffers ──
         t = snap.timestamp - self._trend_start_time
         self._trend_time.append(t)
-        self._trend_voltage.append(snap.dc_voltage)
-        self._trend_current.append(snap.dc_current)
-        self._trend_power.append(snap.dc_power)
-        self._trend_temp.append(snap.inlet_temp)
+
+        # Overview trends
+        self._buf_dc_voltage.append(snap.dc_voltage)
+        self._buf_dc_current.append(snap.dc_current)
+        self._buf_dc_power.append(snap.dc_power)
+        self._buf_inlet_temp.append(snap.inlet_temp)
+
+        # DC Side
+        self._buf_dc_voltage_hr.append(snap.dc_voltage_hr)
+        self._buf_dc_current_hr.append(snap.dc_current_hr)
+        self._buf_capacity.append(snap.capacity_ah)
+        self._buf_energy.append(snap.energy_wh)
+
+        # AC Grid
+        self._buf_grid_v_u.append(snap.grid_v_u)
+        self._buf_grid_v_v.append(snap.grid_v_v)
+        self._buf_grid_v_w.append(snap.grid_v_w)
+        self._buf_grid_i_u.append(snap.grid_i_u)
+        self._buf_grid_i_v.append(snap.grid_i_v)
+        self._buf_grid_i_w.append(snap.grid_i_w)
+        self._buf_frequency.append(snap.frequency)
+        self._buf_power_factor.append(snap.power_factor)
+
+        # Power & Energy
+        self._buf_active_power.append(snap.active_power)
+        self._buf_reactive_power.append(snap.reactive_power)
+        self._buf_apparent_power.append(snap.apparent_power)
+        self._buf_load_active.append(snap.load_active_power)
+        self._buf_load_reactive.append(snap.load_reactive_power)
+        self._buf_load_apparent.append(snap.load_apparent_power)
+        self._buf_phase_a.append(snap.phase_a_active)
+        self._buf_phase_b.append(snap.phase_b_active)
+        self._buf_phase_c.append(snap.phase_c_active)
+        self._buf_phase_a_q.append(snap.phase_a_reactive)
+        self._buf_phase_b_q.append(snap.phase_b_reactive)
+        self._buf_phase_c_q.append(snap.phase_c_reactive)
+
+        # Thermal
+        self._buf_outlet_temp.append(snap.outlet_temp)
 
     @staticmethod
     def _color_by_range(card: TelemetryCard, val: float, warn: float, crit: float) -> None:
@@ -692,17 +925,59 @@ class MainWindow(QMainWindow):
             card.reset_color()
 
     # =====================================================================
-    #  Trend plots
+    #  Trend / Graph plots – update all curves
     # =====================================================================
 
     def _update_plots(self) -> None:
         if not self._trend_time:
             return
         t = np.array(self._trend_time)
-        self._curve_v.setData(t, np.array(self._trend_voltage))
-        self._curve_i.setData(t, np.array(self._trend_current))
-        self._curve_p.setData(t, np.array(self._trend_power))
-        self._curve_t.setData(t, np.array(self._trend_temp))
+
+        # Only update the currently visible tab to save CPU
+        current_tab = self._tabs.currentIndex()
+
+        if current_tab == 0:  # Trends (overview)
+            self._curve_v.setData(t, np.array(self._buf_dc_voltage))
+            self._curve_i.setData(t, np.array(self._buf_dc_current))
+            self._curve_p.setData(t, np.array(self._buf_dc_power))
+            self._curve_t.setData(t, np.array(self._buf_inlet_temp))
+
+        elif current_tab == 1:  # DC Side
+            self._dc_curve_v.setData(t, np.array(self._buf_dc_voltage))
+            self._dc_curve_v_hr.setData(t, np.array(self._buf_dc_voltage_hr))
+            self._dc_curve_i.setData(t, np.array(self._buf_dc_current))
+            self._dc_curve_i_hr.setData(t, np.array(self._buf_dc_current_hr))
+            self._dc_curve_power.setData(t, np.array(self._buf_dc_power))
+            self._dc_curve_cap.setData(t, np.array(self._buf_capacity))
+            self._dc_curve_energy.setData(t, np.array(self._buf_energy))
+
+        elif current_tab == 2:  # AC Grid
+            self._ac_curve_vu.setData(t, np.array(self._buf_grid_v_u))
+            self._ac_curve_vv.setData(t, np.array(self._buf_grid_v_v))
+            self._ac_curve_vw.setData(t, np.array(self._buf_grid_v_w))
+            self._ac_curve_iu.setData(t, np.array(self._buf_grid_i_u))
+            self._ac_curve_iv.setData(t, np.array(self._buf_grid_i_v))
+            self._ac_curve_iw.setData(t, np.array(self._buf_grid_i_w))
+            self._ac_curve_freq.setData(t, np.array(self._buf_frequency))
+            self._ac_curve_pf.setData(t, np.array(self._buf_power_factor))
+
+        elif current_tab == 3:  # Power & Energy
+            self._pwr_curve_active.setData(t, np.array(self._buf_active_power))
+            self._pwr_curve_reactive.setData(t, np.array(self._buf_reactive_power))
+            self._pwr_curve_apparent.setData(t, np.array(self._buf_apparent_power))
+            self._pwr_curve_load_active.setData(t, np.array(self._buf_load_active))
+            self._pwr_curve_load_reactive.setData(t, np.array(self._buf_load_reactive))
+            self._pwr_curve_load_apparent.setData(t, np.array(self._buf_load_apparent))
+            self._pwr_curve_ph_a.setData(t, np.array(self._buf_phase_a))
+            self._pwr_curve_ph_b.setData(t, np.array(self._buf_phase_b))
+            self._pwr_curve_ph_c.setData(t, np.array(self._buf_phase_c))
+            self._pwr_curve_ph_a_q.setData(t, np.array(self._buf_phase_a_q))
+            self._pwr_curve_ph_b_q.setData(t, np.array(self._buf_phase_b_q))
+            self._pwr_curve_ph_c_q.setData(t, np.array(self._buf_phase_c_q))
+
+        elif current_tab == 4:  # Thermal
+            self._therm_curve_inlet.setData(t, np.array(self._buf_inlet_temp))
+            self._therm_curve_outlet.setData(t, np.array(self._buf_outlet_temp))
 
     # =====================================================================
     #  Raw CAN table
@@ -781,7 +1056,6 @@ class MainWindow(QMainWindow):
         except ValueError:
             return
 
-        # Collect params based on mode definition
         params_def = MODE_PARAMS.get(mode_val, [])
         params: List[float] = []
         spinners = [self._spn_param1, self._spn_param2, self._spn_param3, self._spn_param4]

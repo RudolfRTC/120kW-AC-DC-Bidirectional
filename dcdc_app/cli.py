@@ -146,6 +146,9 @@ Examples:
         help="Parameter type: 1=V/I limits, 2=power/AC limits, 3=frequency limits",
     )
 
+    # gui
+    sub.add_parser("gui", help="Launch the graphical Mission Console (requires PySide6)")
+
     return parser
 
 
@@ -559,6 +562,11 @@ def cmd_read_params(args) -> int:
 # Main
 # ---------------------------------------------------------------------------
 
+def cmd_gui(args) -> int:
+    from dcdc_app.gui.app import launch
+    return launch()
+
+
 COMMANDS = {
     "list-interfaces": cmd_list_interfaces,
     "monitor": cmd_monitor,
@@ -571,6 +579,7 @@ COMMANDS = {
     "status": cmd_status,
     "version": cmd_version,
     "read-params": cmd_read_params,
+    "gui": cmd_gui,
 }
 
 

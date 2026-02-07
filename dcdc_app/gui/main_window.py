@@ -170,22 +170,30 @@ class MainWindow(QMainWindow):
         # Header bar
         root_layout.addWidget(self._build_header())
 
-        # Main body: sidebar | centre | faults  (fixed widths for sides)
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(0)
+        # Main body: sidebar | centre | faults  (QSplitter for proper sizing)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(2)
+        splitter.setChildrenCollapsible(False)
 
         sidebar = self._build_sidebar()
-        sidebar.setFixedWidth(230)
-        body.addWidget(sidebar)
+        sidebar.setMinimumWidth(250)
+        sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        splitter.addWidget(sidebar)
 
-        body.addWidget(self._build_centre(), 1)  # stretches
+        splitter.addWidget(self._build_centre())
 
         faults = self._build_faults_panel()
-        faults.setFixedWidth(220)
-        body.addWidget(faults)
+        faults.setMinimumWidth(210)
+        faults.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        splitter.addWidget(faults)
 
-        root_layout.addLayout(body, 1)
+        # Centre panel gets all the stretch; side panels stay preferred size
+        splitter.setStretchFactor(0, 0)  # sidebar: no stretch
+        splitter.setStretchFactor(1, 1)  # centre: stretches
+        splitter.setStretchFactor(2, 0)  # faults: no stretch
+        splitter.setSizes([270, 900, 230])
+
+        root_layout.addWidget(splitter, 1)
 
         # Status bar
         self._status_bar = QStatusBar()
@@ -232,6 +240,7 @@ class MainWindow(QMainWindow):
 
         form = QFormLayout()
         form.setSpacing(4)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self._cmb_interface = QComboBox()
         self._cmb_interface.addItems(["simulator", "pcan", "socketcan"])
@@ -294,6 +303,7 @@ class MainWindow(QMainWindow):
 
         sp_form = QFormLayout()
         sp_form.setSpacing(4)
+        sp_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self._cmb_mode = QComboBox()
         for m in WorkingMode:

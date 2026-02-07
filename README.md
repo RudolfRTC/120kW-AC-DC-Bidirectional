@@ -116,11 +116,21 @@ tests/
 - **simulator.py**: Fake PCS on virtual CAN bus. Sends realistic periodic frames,
   responds to commands. Simulates heartbeat timeout detection.
 
+- **gui/** (package): Aerospace-themed desktop GUI built with PySide6 + pyqtgraph.
+  - `app.py`: Qt application entry point
+  - `main_window.py`: Full mission console (telemetry, plots, controls, faults)
+  - `backend.py`: Thread-safe adapter between Qt signals and PCSController
+  - `widgets.py`: Reusable telemetry cards, status indicators, 3-phase displays
+  - `theme.py`: Space/aerospace QSS stylesheet (dark, cyan/blue accents, glow borders)
+
 ## Installation
 
 ```bash
-# Basic install
+# Basic install (CLI only)
 pip install -e .
+
+# With GUI (PySide6 + pyqtgraph)
+pip install -e ".[gui]"
 
 # With PCAN driver support
 pip install -e ".[pcan]"
@@ -128,8 +138,11 @@ pip install -e ".[pcan]"
 # Development (includes pytest)
 pip install -e ".[dev]"
 
+# Everything
+pip install -e ".[gui,pcan,dev]"
+
 # Or just install dependencies directly
-pip install python-can
+pip install python-can PySide6 pyqtgraph numpy
 ```
 
 ### PCAN Driver Setup (Windows)
@@ -212,6 +225,51 @@ sudo ip link set can0 up
 # Use socketcan interface
 python -m dcdc_app --interface socketcan --channel can0 monitor
 ```
+
+## GUI – Mission Console
+
+The application includes a professional desktop GUI with a space/aerospace visual theme.
+
+### Install GUI Dependencies
+
+```bash
+pip install -e ".[gui]"
+```
+
+### Launch GUI in Simulator Mode (No Hardware)
+
+```bash
+python -m dcdc_app gui
+# Or directly:
+python -m dcdc_app.gui
+```
+
+1. Select **simulator** from the Interface dropdown
+2. Click **Connect**
+3. Telemetry cards, trend plots, and status will update in real time
+
+### Launch GUI with PCAN on Windows
+
+```bash
+python -m dcdc_app gui
+```
+
+1. Select **pcan** from the Interface dropdown
+2. Choose your channel (e.g., PCAN_USBBUS1)
+3. Verify bitrate is **250000** (protocol default)
+4. Click **Connect**
+
+### GUI Features
+
+- **Live Telemetry Dashboard**: DC voltage/current/power, temperatures, grid 3-phase V/I, system power, frequency, capacity/energy, hi-res DC readings — all updating at 10 Hz
+- **Trend Plots**: Real-time sliding-window charts for DC voltage, current, power, and temperature (pyqtgraph)
+- **Power Control**: Enable/Disable buttons with confirmation dialog, Emergency Stop
+- **Setpoints Panel**: Mode selection with dynamic parameter fields matching protocol definitions, validated inputs
+- **Fault Display**: Active fault code with description, severity coloring, Reset Faults button
+- **Heartbeat Monitor**: Visual indicator showing CAN message age and communication health
+- **Event Log**: Timestamped event stream for connection, commands, and errors
+- **Raw CAN Table**: Filterable frame viewer showing all CAN traffic with ID, data, direction
+- **Aerospace Theme**: Dark background, cyan/blue glow accents, monospace telemetry digits, HUD-style panels
 
 ### CLI Commands Reference
 

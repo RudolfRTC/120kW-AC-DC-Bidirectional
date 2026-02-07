@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dcdc-pcs"
+version = "1.0.0"
+description = "YSTECH PCS (30-120kW AC/DC Bidirectional) CAN Communication Application"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "python-can>=4.0",
+]
+
+[project.optional-dependencies]
+pcan = ["python-can[pcan]>=4.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-timeout>=2.0",
+]
+
+[project.scripts]
+dcdc-pcs = "dcdc_app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dcdc_app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 30
